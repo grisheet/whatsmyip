@@ -1,0 +1,8 @@
+.git
+.github
+**/.env*
+**/vendor/
+**/.phpunit.cache/
+**/.phpunit.result.cache
+web/bootstrap/cache/*
+web/storage/**

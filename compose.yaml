@@ -1,0 +1,43 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      APP_URL: https://${SITE_DOMAIN:?Set SITE_DOMAIN in .env.deploy}
+      APP_KEY: ${APP_KEY:?Set APP_KEY in .env.deploy}
+      IP2LOCATIONIO_TOKEN: ${IP2LOCATIONIO_TOKEN:?Set IP2LOCATIONIO_TOKEN in .env.deploy}
+      SITE_CONTACT_EMAIL: ${SITE_CONTACT_EMAIL:-}
+      TRUSTED_PROXIES: 172.29.240.2
+      LOOKUP_REQUESTS_PER_MINUTE: ${LOOKUP_REQUESTS_PER_MINUTE:-10}
+      LOOKUP_PROVIDER_REQUESTS_PER_DAY: ${LOOKUP_PROVIDER_REQUESTS_PER_DAY:-100}
+    networks:
+      - site
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?Set SITE_DOMAIN in .env.deploy}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./web/deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - tls-data:/data
+      - tls-config:/config
+    networks:
+      site:
+        ipv4_address: 172.29.240.2
+
+networks:
+  site:
+    ipam:
+      config:
+        - subnet: 172.29.240.0/24
+          ip_range: 172.29.240.128/25
+
+volumes:
+  tls-data:
+  tls-config:
