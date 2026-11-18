@@ -10,9 +10,8 @@ Install [Homebrew](https://brew.sh/) if you do not have it. Then open Terminal a
 brew install php@8.4 composer
 export PATH="$(brew --prefix php@8.4)/bin:$PATH"
 
-git clone https://github.com/grisheet/whatsmyip.git
+git clone --branch main https://github.com/grisheet/whatsmyip.git
 cd whatsmyip
-git switch web/public-ip-lookup
 cd web
 
 composer install
@@ -20,7 +19,7 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-The branch must be available on GitHub for `git switch` to find it. If you already have the review checkout, start from its `web/` directory and keep your existing `.env` if present. Repeat the `export PATH` command when opening a new shell.
+If you already have the repository on your Mac, switch to `main`, then start from its `web/` directory and keep your existing `.env` if present. Repeat the `export PATH` command when opening a new shell.
 
 Edit `web/.env` and set `IP2LOCATIONIO_TOKEN` to your provider key. Then run the development server from `web/`:
 
@@ -71,7 +70,7 @@ The app uses the connection address unless the immediate peer is in `TRUSTED_PRO
 
 ### Docker host with Caddy
 
-Use any Linux host with Docker Engine and Docker Compose v2. A VM and domain may have recurring charges. Point your domain's DNS to the host and open incoming TCP ports 80 and 443. Clone the reviewed branch on the host, then run these commands at the repository root:
+Use any Linux host with Docker Engine and Docker Compose v2. A VM and domain may have recurring charges. Point your domain's DNS to the host and open incoming TCP ports 80 and 443. Clone the `main` branch on the host, then run these commands at the repository root:
 
 ```sh
 cp web/deploy/site.env.example .env.deploy
@@ -91,7 +90,7 @@ Replace `ip.example.com` with your domain. Caddy obtains and renews HTTPS certif
 
 ### Railway option
 
-Create a service from this GitHub repository and select the reviewed branch. In the service settings, keep the root directory at the repository root. Select the root `Dockerfile`, or set `RAILWAY_DOCKERFILE_PATH=Dockerfile` if a path override is needed. Leave the start-command override blank so Railway runs the image's default command. Add the runtime variables above in the service settings. Set the health check path to `/up`.
+Create a service from this GitHub repository and select the `main` branch. In the service settings, keep the root directory at the repository root. Select the root `Dockerfile`, or set `RAILWAY_DOCKERFILE_PATH=Dockerfile` if a path override is needed. Leave the start-command override blank so Railway runs the image's default command. Add the runtime variables above in the service settings. Set the health check path to `/up`.
 
 Use Railway's public HTTP networking to generate an HTTPS domain, with the target port matching `PORT` (or `8080` if you set no port). Update `APP_URL` to the generated URL and redeploy. For client IP detection, confirm Railway's documented forwarding behavior and which ingress addresses can be safely trusted. If you cannot identify the trusted peers, use the Caddy deployment above for correct client-IP detection and per-visitor limits.
 
