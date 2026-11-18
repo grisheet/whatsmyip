@@ -2,6 +2,14 @@
 
 A public IP-location tool by Grisheet Dhage. The standalone Laravel website lives in [web/](web/). It uses the [stevebauman/location](https://github.com/stevebauman/location) package in this repository through a Composer path dependency. The original package documentation follows below, and its [MIT license](LICENSE) remains in place.
 
+## GitHub Pages
+
+[Open What's My IP](https://grisheet.github.io/whatsmyip/). GitHub Pages publishes the root `index.html` from `main`. Keep the Pages source set to **Deploy from a branch**, **main**, and **/ (root)**. This version runs in the browser and shares the Laravel site's styles and self-hosted fonts.
+
+The Pages version uses the [keyless ipapi.is API](https://github.com/ipapi-is/ipapi#the-api) and requires JavaScript. The provider documents a limit of 30 requests a day per client address. “Use my IP” requests your address only when clicked. No API key belongs in the static files.
+
+For server-side lookups, use the Laravel deployment below. Its provider, quota settings, and privacy policy are separate from the Pages version.
+
 ## Run on a Mac
 
 Install [Homebrew](https://brew.sh/) if you do not have it. Then open Terminal and run:
@@ -94,7 +102,7 @@ Create a service from this GitHub repository and select the `main` branch. In th
 
 Use Railway's public HTTP networking to generate an HTTPS domain, with the target port matching `PORT` (or `8080` if you set no port). Update `APP_URL` to the generated URL and redeploy. For client IP detection, confirm Railway's documented forwarding behavior and which ingress addresses can be safely trusted. If you cannot identify the trusted peers, use the Caddy deployment above for correct client-IP detection and per-visitor limits.
 
-The [Railway Dockerfile guide](https://docs.railway.com/guides/dockerfiles), [public networking guide](https://docs.railway.com/guides/public-networking), and [pricing page](https://railway.com/pricing) cover platform settings and charges. The live Railway docs and pricing were unavailable from this cloud workspace. Check the current plan and usage costs before creating resources. The production image has been tested locally, and the site has not been published to a public host.
+The [Railway Dockerfile guide](https://docs.railway.com/guides/dockerfiles), [public networking guide](https://docs.railway.com/guides/public-networking), and [pricing page](https://railway.com/pricing) cover platform settings and charges. The live Railway docs and pricing were unavailable from this cloud workspace. Check the current plan and usage costs before creating resources. The production image has been tested locally. This deployment path is separate from the GitHub Pages site.
 
 ## Credits
 

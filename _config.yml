@@ -1,0 +1,27 @@
+exclude:
+  - readme.md
+  - LICENSE
+  - Dockerfile
+  - compose.yaml
+  - composer.json
+  - composer.lock
+  - phpunit.xml
+  - config/
+  - src/
+  - tests/
+  - vendor/
+  - web/app/
+  - web/artisan
+  - web/bootstrap/
+  - web/composer.json
+  - web/composer.lock
+  - web/config/
+  - web/deploy/
+  - web/phpunit.xml
+  - web/public/index.php
+  - web/public/assets/lookup.js
+  - web/resources/
+  - web/routes/
+  - web/storage/
+  - web/tests/
+  - web/vendor/
