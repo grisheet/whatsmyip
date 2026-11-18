@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Look up the approximate location of a public IPv4 or IPv6 address.">
+    <meta name="referrer" content="no-referrer">
+    <title>What's My IP</title>
+    <link rel="stylesheet" href="./web/public/assets/site.css">
+    <script type="module" src="./pages/lookup.js"></script>
+</head>
+<body>
+    <header class="masthead page-width">
+        <a class="wordmark" href="./">What's My IP</a>
+        <span class="byline">By Grisheet Dhage</span>
+    </header>
+    <main class="page-width">
+        <div class="lookup">
+            <section aria-labelledby="lookup-title">
+                <h1 id="lookup-title">Look up an<br class="desktop-break"> IP address</h1>
+                <p class="intro">Enter a public IPv4 or IPv6 address to see its approximate location.</p>
+                <noscript><p class="alert">Enable JavaScript to look up an address on GitHub Pages.</p></noscript>
+
+                <form id="lookup-form">
+                    <label for="ip">IP address</label>
+                    <div class="input-row">
+                        <input id="ip" name="ip" type="text" maxlength="45" placeholder="IPv4 or IPv6"
+                            autocomplete="off" autocapitalize="none" spellcheck="false" disabled>
+                        <button class="primary" type="submit" value="manual" disabled>Look up</button>
+                    </div>
+                    <div class="visitor">
+                        <div class="visitor-heading">
+                            <span class="visitor-label"><span class="live-dot" aria-hidden="true" hidden></span>Your detected IP</span>
+                            <button class="text-button" type="submit" value="visitor" disabled>Use my IP</button>
+                        </div>
+                        <div class="visitor-data">
+                            <span class="data" id="visitor-ip">Not requested yet</span>
+                            <button class="text-button" type="button" aria-label="Copy detected IP" hidden>Copy</button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <section class="results" aria-labelledby="result-title" id="lookup-results" aria-busy="false">
+                <h2 id="result-title">Location details</h2>
+                <div class="alert" id="lookup-error" role="alert" hidden>
+                    <strong>Lookup failed</strong>
+                    <p></p>
+                </div>
+                <dl class="ledger">
+                    <div class="ledger-row"><dt>Country</dt><dd class="data missing" data-field="country">Not looked up yet</dd></div>
+                    <div class="ledger-row"><dt>Region</dt><dd class="data missing" data-field="state">Not looked up yet</dd></div>
+                    <div class="ledger-row"><dt>City</dt><dd class="data missing" data-field="city">Not looked up yet</dd></div>
+                    <div class="ledger-row"><dt>Postal code</dt><dd class="data missing" data-field="zip">Not looked up yet</dd></div>
+                    <div class="ledger-row"><dt>Time zone</dt><dd class="data missing" data-field="timezone">Not looked up yet</dd></div>
+                    <div class="ledger-row"><dt>Latitude</dt><dd class="data missing" data-field="latitude">Not looked up yet</dd></div>
+                    <div class="ledger-row"><dt>Longitude</dt><dd class="data missing" data-field="longitude">Not looked up yet</dd></div>
+                </dl>
+                <div class="result-ip" hidden>
+                    <span class="result-address data"></span>
+                    <button class="text-button" type="button" aria-label="Copy looked-up IP" hidden>Copy</button>
+                </div>
+            </section>
+        </div>
+
+        <p id="lookup-status" class="visually-hidden" role="status" aria-atomic="true"></p>
+        <section class="accuracy" aria-labelledby="accuracy-title">
+            <h2 id="accuracy-title">How accurate is IP location?</h2>
+            <p>ipapi.is estimates a network's location. You may see the area of an internet provider, mobile network, or VPN exit. An IP address cannot pinpoint someone's home or provide a GPS location.</p>
+        </section>
+    </main>
+    <footer class="footer page-width">
+        <nav aria-label="Site information">
+            <a href="./privacy.html">Privacy</a>
+            <a href="./terms.html">Terms</a>
+        </nav>
+        <div class="credits">
+            <a href="https://github.com/stevebauman/location">stevebauman/location (MIT)</a>
+            <a href="https://ipapi.is/">IP geolocation by ipapi.is</a>
+        </div>
+    </footer>
+</body>
+</html>
