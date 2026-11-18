@@ -1,3 +1,108 @@
+# What's My IP
+
+A public IP-location tool by Grisheet Dhage. The standalone Laravel website lives in [web/](web/). It uses the [stevebauman/location](https://github.com/stevebauman/location) package in this repository through a Composer path dependency. The original package documentation follows below, and its [MIT license](LICENSE) remains in place.
+
+## Run on a Mac
+
+Install [Homebrew](https://brew.sh/) if you do not have it. Then open Terminal and run:
+
+```sh
+brew install php@8.4 composer
+export PATH="$(brew --prefix php@8.4)/bin:$PATH"
+
+git clone https://github.com/grisheet/whatsmyip.git
+cd whatsmyip
+git switch web/public-ip-lookup
+cd web
+
+composer install
+cp .env.example .env
+php artisan key:generate
+```
+
+The branch must be available on GitHub for `git switch` to find it. If you already have the review checkout, start from its `web/` directory and keep your existing `.env` if present. Repeat the `export PATH` command when opening a new shell.
+
+Edit `web/.env` and set `IP2LOCATIONIO_TOKEN` to your provider key. Then run the development server from `web/`:
+
+```sh
+php artisan serve --host=127.0.0.1 --port=8000
+```
+
+Open `http://127.0.0.1:8000` in your browser. The detected address will usually be `127.0.0.1`. To exercise a provider lookup locally, type a public address. The application renders without a provider key and returns an unavailable message when you ask for a public lookup.
+
+Run the website tests from `web/` with `composer test`. They use fake provider responses and in-memory cache and sessions. Run the upstream package suite separately from the repository root with `composer install` and `vendor/bin/pest`.
+
+## Location provider and launch review
+
+The server uses the package's `Ip2locationio` driver to query `https://api.ip2location.io/` for public IPv4 and IPv6 addresses. It requires an API key and has no fallback provider or sample IP substitution. The connection timeout is two seconds and the lookup budget is four seconds. Coverage and fields depend on the address and plan.
+
+The [official PHP SDK documentation](https://github.com/ip2location/ip2location-io-php#api-access-and-query-limits) lists 50,000 monthly IP geolocation queries for its keyed Free plan and requires attribution. The [API documentation](https://www.ip2location.io/ip2location-documentation) and [pricing page](https://www.ip2location.io/pricing) are the sources for current scope and quotas. Confirm with IP2Location.io that your plan permits a public lookup website, displaying the returned fields, and five-minute caching. Verify any required attribution wording before launch. The live plan and terms pages could not be checked from the restricted cloud workspace. The site includes a linked provider credit in its footer.
+
+Successful results are reusable for five minutes. The site has no lookup history. The filesystem cache may retain expired entries until accessed or cleared. The app defaults to ten requests per visitor address per minute and 100 upstream attempts per 24-hour window per instance. Cache hits do not spend the upstream quota. Set a provider-side cap if your plan offers one. Replacing the container can reset local counters, and adding replicas multiplies the upstream budget.
+
+Review the site's [Privacy](web/resources/views/privacy.blade.php) and [Terms](web/resources/views/terms.blade.php) pages before launch. They describe the implementation and are not legal advice. Check your host and provider's actual logging and retention policies, and add a public contact email you can monitor.
+
+## Deploy with Docker and HTTPS
+
+Build the Docker image with the repository root as the context:
+
+```sh
+docker build -t whatsmyip .
+```
+
+The image installs locked production dependencies and retains the local package alongside `web/`. It starts Apache with `start-whatsmyip`, listens on `0.0.0.0` with `PORT` defaulting to `8080`, and uses `/srv/whatsmyip/web/public` as its document root. The app's `storage/` and `bootstrap/cache/` directories must be writable by the web process. The image sets their permissions, excludes `.env` files from the build, and supports a `GET /up` health check.
+
+### Required settings
+
+| Variable | Value |
+| --- | --- |
+| `APP_ENV` | `production`, set by the image |
+| `APP_DEBUG` | `false`, set by the image |
+| `APP_URL` | The public HTTPS URL, such as `https://ip.example.com` |
+| `APP_KEY` | A unique key from `php artisan key:generate --show` run in `web/`. Keep it secret and stable across deployments. |
+| `IP2LOCATIONIO_TOKEN` | Your provider key. Set it at runtime, never as a Docker build argument. |
+| `SESSION_SECURE_COOKIE` | `true` behind HTTPS, set by the image |
+| `TRUSTED_PROXIES` | Exact trusted proxy IPs or CIDRs separated by commas. Leave it blank for a direct connection. |
+| `SITE_CONTACT_EMAIL` | Optional public email shown on the legal pages |
+| `LOOKUP_REQUESTS_PER_MINUTE` | Per-visitor limit, default `10` |
+| `LOOKUP_PROVIDER_REQUESTS_PER_DAY` | Per-instance upstream limit, default `100`. Set it below your provider allowance. |
+
+The app uses the connection address unless the immediate peer is in `TRUSTED_PROXIES`. It then reads `X-Forwarded-For` and `X-Forwarded-Proto` from that trust boundary. Your edge must overwrite untrusted headers or append the actual client address. Trust only the proxy hops you control, and do not expose a direct path that bypasses the proxy. Do not use catch-all CIDRs. After deployment, check that the detected address matches your connection from two different networks.
+
+### Docker host with Caddy
+
+Use any Linux host with Docker Engine and Docker Compose v2. A VM and domain may have recurring charges. Point your domain's DNS to the host and open incoming TCP ports 80 and 443. Clone the reviewed branch on the host, then run these commands at the repository root:
+
+```sh
+cp web/deploy/site.env.example .env.deploy
+chmod 600 .env.deploy
+docker run --rm --entrypoint php whatsmyip artisan key:generate --show
+```
+
+Run `docker build -t whatsmyip .` first if the image is not present. Paste the generated key into `.env.deploy`, then fill in `SITE_DOMAIN` without a URL scheme, the provider key, and your contact email. Start the site:
+
+```sh
+docker compose --env-file .env.deploy up -d --build
+docker compose --env-file .env.deploy ps
+curl -fsS https://ip.example.com/up
+```
+
+Replace `ip.example.com` with your domain. Caddy obtains and renews HTTPS certificates and forwards traffic to Apache over a private Docker network. Only Caddy publishes ports, and the application trusts only Caddy's assigned address. If the example Docker subnet overlaps a network on your host, choose a free private subnet and update the allocation range, Caddy's static IP, and `TRUSTED_PROXIES` in `compose.yaml`.
+
+### Railway option
+
+Create a service from this GitHub repository and select the reviewed branch. In the service settings, keep the root directory at the repository root. Select the root `Dockerfile`, or set `RAILWAY_DOCKERFILE_PATH=Dockerfile` if a path override is needed. Leave the start-command override blank so Railway runs the image's default command. Add the runtime variables above in the service settings. Set the health check path to `/up`.
+
+Use Railway's public HTTP networking to generate an HTTPS domain, with the target port matching `PORT` (or `8080` if you set no port). Update `APP_URL` to the generated URL and redeploy. For client IP detection, confirm Railway's documented forwarding behavior and which ingress addresses can be safely trusted. If you cannot identify the trusted peers, use the Caddy deployment above for correct client-IP detection and per-visitor limits.
+
+The [Railway Dockerfile guide](https://docs.railway.com/guides/dockerfiles), [public networking guide](https://docs.railway.com/guides/public-networking), and [pricing page](https://railway.com/pricing) cover platform settings and charges. The live Railway docs and pricing were unavailable from this cloud workspace. Check the current plan and usage costs before creating resources. The production image has been tested locally, and the site has not been published to a public host.
+
+## Credits
+
+Website fonts are self-hosted Latin WOFF2 files distributed by Fontsource 5.3.0. The [font directory](web/public/assets/fonts/) includes the SIL Open Font License files for Instrument Serif, Hanken Grotesk, and JetBrains Mono.
+
+## Upstream package documentation
+
 <h1 align="center">Location</h1>
 
 <p align="center">
