@@ -9,10 +9,11 @@ const resultIp = results.querySelector('.result-ip');
 const resultCopy = resultIp.querySelector('button');
 const fields = [...results.querySelectorAll('[data-field]')];
 const submitButtons = [...form.querySelectorAll('[type="submit"]')];
-const endpoint = 'https://api.ipapi.is/';
-const cache = new Map();
-const cacheLifetime = 5 * 60 * 1000;
-let detection;
+const fieldNames = ['country', 'state', 'city', 'zip', 'timezone', 'latitude', 'longitude'];
+const dataDirectory = new URL('./data/', import.meta.url);
+let shardIndex;
+let lastShard;
+let detectedIp;
 
 function parseAddress(text) {
     if (text.includes(':')) {
@@ -99,32 +100,86 @@ function showError(message, invalid = false) {
     }
 }
 
-async function lookup(ip) {
-    const cached = ip ? cache.get(ip) : detection;
-    if (cached && cached.expires > Date.now()) return cached;
-
-    const url = new URL(endpoint);
-    if (ip) url.searchParams.set('q', ip);
-    const response = await fetch(url, {
-        credentials: 'omit',
-        cache: 'no-store',
-        signal: AbortSignal.timeout(7000),
-    });
-    if (response.status === 429) throw new Error('quota');
-    if (!response.ok) throw new Error('provider');
-
-    const data = await response.json();
-    const queriedIp = typeof data?.ip === 'string' ? parseAddress(data.ip) : null;
-    if (!queriedIp || !isPublic(queriedIp) || (ip && queriedIp !== ip) || data.error || !data.location) {
-        if (typeof data?.error === 'string' && /rate limit|quota|too many/i.test(data.error)) throw new Error('quota');
-        throw new Error('provider');
+function addressNumber(ip) {
+    if (!ip.includes(':')) {
+        return ip.split('.').reduce((number, octet) => (number << 8n) + BigInt(octet), 0n);
     }
 
-    const location = {...data.location, zip: data.location.zip ?? data.location.postal};
-    const entry = { ip: queriedIp, location, expires: Date.now() + cacheLifetime };
-    cache.set(queriedIp, entry);
-    if (!ip) detection = entry;
-    return entry;
+    const [left, right] = ip.split('::');
+    const groups = left ? left.split(':') : [];
+    if (right !== undefined) {
+        const tail = right ? right.split(':') : [];
+        groups.push(...Array(8 - groups.length - tail.length).fill('0'), ...tail);
+    }
+    return groups.reduce((number, group) => (number << 16n) + BigInt('0x' + group), 0n);
+}
+
+async function getFile(filename) {
+    const response = await fetch(new URL(filename, dataDirectory), {signal: AbortSignal.timeout(10000)});
+    if (!response.ok) throw new Error('data');
+    return response;
+}
+
+async function readShard(name) {
+    if (!shardIndex) {
+        const response = await getFile('index.json');
+        shardIndex = new Set(await response.json());
+    }
+    if (!shardIndex.has(name)) return null;
+    if (lastShard?.name === name) return lastShard.data;
+
+    const response = await getFile(name + '.bin');
+    const stream = response.body.pipeThrough(new DecompressionStream('gzip'));
+    const data = await new Response(stream).json();
+    lastShard = {name, data};
+    return data;
+}
+
+async function lookup(ip) {
+    const v6 = ip.includes(':');
+    const hostBits = v6 ? 116n : 22n;
+    const number = addressNumber(ip);
+    const prefix = number >> hostBits;
+    const name = (v6 ? '6-' : '4-') + prefix.toString(16).padStart(3, '0');
+    const shard = await readShard(name);
+    if (!shard) return null;
+
+    const [locations, intervals] = shard;
+    const offset = number - (prefix << hostBits);
+    let low = 0;
+    let high = intervals.length - 1;
+    while (low <= high) {
+        const middle = Math.floor((low + high) / 2);
+        const [start, end, location] = intervals[middle];
+        if (offset < BigInt('0x' + start)) {
+            high = middle - 1;
+        } else if (offset > BigInt('0x' + end)) {
+            low = middle + 1;
+        } else {
+            return Object.fromEntries(fieldNames.map((field, index) => [field, locations[location][index]]));
+        }
+    }
+    return null;
+}
+
+async function detectAddress() {
+    if (detectedIp) return detectedIp;
+
+    try {
+        const response = await fetch('https://api64.ipify.org/?format=json', {
+            credentials: 'omit',
+            cache: 'no-store',
+            signal: AbortSignal.timeout(7000),
+        });
+        if (!response.ok) throw new Error();
+        const {ip} = await response.json();
+        const address = typeof ip === 'string' ? parseAddress(ip) : null;
+        if (!address || !isPublic(address)) throw new Error();
+        detectedIp = address;
+        return address;
+    } catch {
+        throw new Error('detection');
+    }
 }
 
 form.addEventListener('submit', async event => {
@@ -147,23 +202,31 @@ form.addEventListener('submit', async event => {
     status.textContent = 'Looking up the IP address.';
 
     try {
-        const entry = await lookup(ip);
+        const address = useVisitor ? await detectAddress() : ip;
         if (useVisitor) {
-            visitor.textContent = entry.ip;
+            visitor.textContent = address;
             form.querySelector('.live-dot').hidden = false;
-            setCopy(visitorCopy, entry.ip);
+            setCopy(visitorCopy, address);
         }
-        input.value = entry.ip;
-        render(entry.location);
-        resultIp.querySelector('.result-address').textContent = entry.ip;
+        input.value = address;
+
+        const location = await lookup(address);
+        if (!location) {
+            status.textContent = '';
+            showError('No location is available for this address in the public dataset.');
+            return;
+        }
+
+        render(location);
+        resultIp.querySelector('.result-address').textContent = address;
         resultIp.hidden = false;
-        setCopy(resultCopy, entry.ip);
-        status.textContent = 'Location details updated for ' + entry.ip + '.';
+        setCopy(resultCopy, address);
+        status.textContent = 'Location details updated for ' + address + '.';
     } catch (error) {
         status.textContent = '';
-        showError(error.message === 'quota'
-            ? 'The location provider has reached its lookup limit. Try again later.'
-            : 'The location provider could not complete the lookup. Try again later or try another address.');
+        showError(error.message === 'detection'
+            ? 'Your public address could not be detected. You can enter a public IP address manually.'
+            : 'The location data could not be loaded. Reload this page and try again.');
     } finally {
         results.setAttribute('aria-busy', 'false');
         submitButtons.forEach(button => button.removeAttribute('aria-disabled'));

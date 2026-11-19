@@ -6,7 +6,9 @@ A public IP-location tool by Grisheet Dhage. The standalone Laravel website live
 
 [Open What's My IP](https://grisheet.github.io/whatsmyip/). GitHub Pages publishes the root `index.html` from `main`. Keep the Pages source set to **Deploy from a branch**, **main**, and **/ (root)**. This version runs in the browser and shares the Laravel site's styles and self-hosted fonts.
 
-The Pages version uses the [keyless ipapi.is API](https://github.com/ipapi-is/ipapi#the-api) and requires JavaScript. The provider documents a limit of 30 requests a day per client address. “Use my IP” requests your address only when clicked. No API key belongs in the static files.
+The Pages version requires JavaScript and a browser with gzip decompression support. Manual lookups use the [ipapi.is free geolocation database](https://github.com/ipapi-is/ipapi#free-ip-geolocation-database), served as compressed ranges from the same site. The full address entered stays in the browser. The database reflects network registration and has incomplete coverage. “Use my IP” asks [ipify](https://www.ipify.org/) for the visitor address only when clicked. No API keys are required on Pages.
+
+The compressed range files are distributed under [CC BY-SA 4.0](pages/data/LICENSE-free-geolocation-database.txt). They were generated from [this ipapi.is database revision](https://github.com/ipapi-is/ipapi/tree/a8cc6efbaca7b78dcab623d414d56784ba494ba5/databases). To refresh them, download the IPv4 and IPv6 CSV ZIPs from a newer revision and run `python3 scripts/build-pages-data.py ipv4.zip ipv6.zip new-data`. Review the output and replace `pages/data/` with the generated directory. The converter resolves nested ranges in favor of the most specific source record and retains the fields displayed on the site.
 
 For server-side lookups, use the Laravel deployment below. Its provider, quota settings, and privacy policy are separate from the Pages version.
 

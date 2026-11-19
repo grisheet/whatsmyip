@@ -9,6 +9,7 @@ exclude:
   - config/
   - src/
   - tests/
+  - scripts/
   - vendor/
   - web/app/
   - web/artisan
